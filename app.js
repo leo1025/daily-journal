@@ -2,6 +2,7 @@
 
 const express = require("express");
 const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
 const ejs = require("ejs");
 const _ = require("lodash");
 
@@ -11,15 +12,26 @@ const contactContent = "Scelerisque eleifend donec pretium vulputate sapien. Rho
 
 const app = express();
 
-let posts = [];
+// let posts = [];
 
 app.set('view engine', 'ejs');
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
+mongoose.connect("mongodb+srv://admin:Doopy0728@cluster0.ed4cmtf.mongodb.net/postsDB", {useNewUrlParser: true});
+
+const postSchema = {
+  title:String,
+  content:String
+};
+
+const Post = mongoose.model("Post", postSchema);
+
 app.get("/", function(req, res) {
-  res.render("home", {homeContent: homeStartingContent, posts: posts});
+  Post.find({}, function(err, posts) {
+    res.render("home", {homeContent: homeStartingContent, posts: posts});
+  });
 });
 
 app.get("/about", function(req, res) {
@@ -34,29 +46,25 @@ app.get("/compose", function(req, res) {
   res.render("compose");
 });
 
-app.get("/posts/:id", function(req, res) {
-  const requestedTitle = _.lowerCase(req.params.id);
+app.get("/posts/:postId", function(req, res) {
+  const requestedId = req.params.postId;
 
-  posts.forEach(function(post) {
-    const storedTitle = _.lowerCase(post.title);
-
-    if(storedTitle === requestedTitle) {
-      res.render("post", {
-        title: post.title,
-        body: post.body
-      });
-    }
+  Post.findOne({_id: requestedId}, function(err, post) {
+    res.render("post", {title: post.title, content: post.content});
   })
 });
 
 app.post("/compose", function(req, res) {
-  const post = {
+  const post = new Post({
     title: req.body.postTitle,
-    body: req.body.postBody
-  };
+    content: req.body.postBody
+  });
 
-  posts.push(post);
-  res.redirect("/");
+  post.save(function(err) {
+    if(!err) {
+      res.redirect("/");
+    }
+  });
 });
 
 app.listen(3000, function() {
